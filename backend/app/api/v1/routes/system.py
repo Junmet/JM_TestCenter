@@ -21,5 +21,8 @@ def get_menus(_user: User = Depends(get_current_user)) -> MenuListResponse:
         MenuItem(id="cases", title="用例管理", path="/cases", icon="cases"),
         MenuItem(id="case-gen", title="用例生成", path="/case-gen", icon="case-gen"),
         MenuItem(id="ui-automation", title="UI 自动化", path="/ui-automation", icon="robot"),
+        MenuItem(id="api-test", title="接口测试", path="/api-test", icon="api"),
+        MenuItem(id="perf-test", title="性能测试", path="/perf-test", icon="gauge"),
+        MenuItem(id="ai-chat", title="AI 对话", path="/ai-chat", icon="chat"),
     ]
     return MenuListResponse(menus=menus)
