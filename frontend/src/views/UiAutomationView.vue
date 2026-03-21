@@ -51,28 +51,35 @@
         />
         <el-form :model="form" label-width="120px" class="form-grid form-grid--responsive">
         <el-form-item label="执行引擎" required>
-          <el-radio-group v-model="form.runner">
-            <el-radio value="midscene">Midscene（自然语言 / 视觉模型）</el-radio>
-            <el-radio value="playwright">纯 Playwright（selector，无模型，速度快）</el-radio>
-          </el-radio-group>
-          <el-text class="field-tip" type="info" size="small" tag="div">
+          <div class="form-item-with-tip form-item-with-tip--inline">
+            <el-radio-group v-model="form.runner" class="form-item-with-tip__main">
+              <el-radio value="midscene">Midscene（自然语言 / 视觉模型）</el-radio>
+              <el-radio value="playwright">纯 Playwright（selector，无模型，速度快）</el-radio>
+            </el-radio-group>
+            
+          </div>
+          <InlineHelpTip>
             选 <strong>纯 Playwright</strong> 时无需填写 API Key，步骤为 JSON（<code>locator</code> 定位 DOM），适合稳定回归。
-          </el-text>
+          </InlineHelpTip>
         </el-form-item>
         <template v-if="form.runner === 'midscene'">
         <el-form-item label="模型服务" required>
-          <el-select v-model="provider" class="select-full" placeholder="请选择服务商">
-            <el-option
-              v-for="opt in providerOptions"
-              :key="opt.value"
-              :label="opt.label"
-              :value="opt.value"
-            />
-          </el-select>
-          <el-text class="field-tip" type="info" size="small" tag="div">
+          <div class="form-item-with-tip form-item-with-tip--inline">
+            <div class="form-item-with-tip__main form-item-with-tip__main--select">
+            <el-select v-model="provider" class="select-full" placeholder="请选择服务商">
+              <el-option
+                v-for="opt in providerOptions"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
+            </div>
+          </div>
+          <InlineHelpTip>
             仅支持<strong>通义千问</strong>与<strong>豆包</strong>；接口地址为
             <code class="mono-tip">{{ form.model.base_url }}</code>
-          </el-text>
+          </InlineHelpTip>
         </el-form-item>
         <el-form-item label="API Key" required>
           <el-input
@@ -85,127 +92,119 @@
           />
         </el-form-item>
         <el-form-item label="模型名称" required>
-          <el-select v-model="form.model.name" class="select-full" placeholder="请选择模型">
-            <el-option v-for="m in modelNameOptions" :key="m" :label="m" :value="m" />
-          </el-select>
-          <el-text class="field-tip" type="info" size="small" tag="div"
-            >选项与所选「模型服务」对应；若控制台模型 ID 与列表不一致，请同步到控制台为准。</el-text
-          >
+          <div class="form-item-with-tip form-item-with-tip--inline">
+            <div class="form-item-with-tip__main form-item-with-tip__main--select">
+            <el-select v-model="form.model.name" class="select-full" placeholder="请选择模型">
+              <el-option v-for="m in modelNameOptions" :key="m" :label="m" :value="m" />
+            </el-select>
+            </div>
+          </div>
+          <InlineHelpTip>
+            选项与所选「模型服务」对应；若控制台模型 ID 与列表不一致，请同步到控制台为准。
+          </InlineHelpTip>
         </el-form-item>
         <el-form-item label="VL 模式" required>
-          <el-select v-model="form.model.family" class="select-full" placeholder="请选择 VL 模式">
-            <el-option v-for="f in familyOptions" :key="f" :label="f" :value="f" />
-          </el-select>
-          <el-text class="field-tip" type="info" size="small" tag="div"
-            >与所选「模型服务」对应；对应环境变量 MIDSCENE_VL_MODE，须为 Midscene 支持的取值之一。</el-text
-          >
+          <div class="form-item-with-tip form-item-with-tip--inline">
+            <div class="form-item-with-tip__main form-item-with-tip__main--select">
+            <el-select v-model="form.model.family" class="select-full" placeholder="请选择 VL 模式">
+              <el-option v-for="f in familyOptions" :key="f" :label="f" :value="f" />
+            </el-select>
+            </div>
+          </div>
+          <InlineHelpTip>
+            与所选「模型服务」对应；对应环境变量 MIDSCENE_VL_MODE，须为 Midscene 支持的取值之一。
+          </InlineHelpTip>
         </el-form-item>
         </template>
         <el-form-item label="起始 URL" required>
-          <el-input v-model="form.start_url" placeholder="https://www.baidu.com" clearable />
-          <el-alert
-            v-if="hintPlaywrightStartUrl"
-            type="warning"
-            :closable="false"
-            show-icon
-            class="field-inline-alert"
-            :title="hintPlaywrightStartUrl"
-          />
+          <div class="start-url-with-tip">
+            <el-input
+              v-model="form.start_url"
+              placeholder="https://www.baidu.com"
+              clearable
+              class="start-url-input"
+            />
+            <InlineHelpTip v-if="hintPlaywrightStartUrl">{{ hintPlaywrightStartUrl }}</InlineHelpTip>
+          </div>
         </el-form-item>
         <el-form-item v-if="form.runner === 'midscene'" label="任务类型" required>
-          <el-radio-group v-model="form.task_mode">
-            <el-radio value="classic">简单自然语言（多行 / 整块）</el-radio>
-            <el-radio value="pipeline">步骤编排（JSON：AI + 确定性 Playwright）</el-radio>
-          </el-radio-group>
-          <el-text class="field-tip" type="info" size="small" tag="div">
+          <div class="form-item-with-tip form-item-with-tip--inline">
+            <el-radio-group v-model="form.task_mode" class="form-item-with-tip__main">
+              <el-radio value="classic">简单自然语言（多行 / 整块）</el-radio>
+              <el-radio value="pipeline">步骤编排（JSON：AI + 确定性 Playwright）</el-radio>
+            </el-radio-group>
+          </div>
+          <InlineHelpTip>
             复杂流程（后退、多标签、断言、截图、打日志）请用<strong>步骤编排</strong>；仅连续点击/输入可用简单模式。
-          </el-text>
+          </InlineHelpTip>
         </el-form-item>
         <template v-if="form.task_mode === 'classic' && form.runner === 'midscene'">
           <el-form-item label="指令模式" required>
-            <el-radio-group v-model="form.instruction_mode">
-              <el-radio value="multi_line">多行：一行一步，按顺序执行多条 aiAction</el-radio>
-              <el-radio value="single_block">整块：整段文字作为一次 aiAction</el-radio>
-            </el-radio-group>
-            <el-text class="field-tip" type="info" size="small" tag="div">
+            <div class="form-item-with-tip form-item-with-tip--inline">
+              <el-radio-group v-model="form.instruction_mode" class="form-item-with-tip__main">
+                <el-radio value="multi_line">多行：一行一步，按顺序执行多条 aiAction</el-radio>
+                <el-radio value="single_block">整块：整段文字作为一次 aiAction</el-radio>
+              </el-radio-group>
+            </div>
+            <InlineHelpTip>
               与下方「自然语言」配合使用：换模式后，输入框里的<strong>灰色提示文字</strong>会跟着变。
-            </el-text>
+            </InlineHelpTip>
           </el-form-item>
           <el-form-item label="自然语言" required>
-            <el-input
-              v-model="form.instructions"
-              type="textarea"
-              :rows="10"
-              :placeholder="instructionsPlaceholder"
-              class="instructions-textarea"
-            />
-            <el-text class="field-tip instructions-guide" type="info" size="small" tag="div">
-              <template v-if="form.instruction_mode === 'multi_line'">
-                <strong>多行模式：</strong>每行一条指令，对应多次「看到页面 → 决策 → 操作」。适合步骤固定、容易拆成列表的场景。
-              </template>
-              <template v-else>
-                <strong>整块模式：</strong>整段描述一个连贯任务，模型会按语义拆成内部步骤。适合一步里包含多句说明、不便强行分行时。
-              </template>
-            </el-text>
-            <el-alert
-              v-if="hintMidsceneInstructions"
-              type="warning"
-              :closable="false"
-              show-icon
-              class="field-inline-alert"
-              :title="hintMidsceneInstructions"
-            />
+            <div class="textarea-with-tip">
+              <el-input
+                v-model="form.instructions"
+                type="textarea"
+                :rows="10"
+                :placeholder="instructionsPlaceholder"
+                class="instructions-textarea textarea-with-tip__input"
+              />
+              <InlineHelpTip class="textarea-with-tip__icon">
+                <template v-if="form.instruction_mode === 'multi_line'">
+                  <strong>多行模式：</strong>每行一条指令，对应多次「看到页面 → 决策 → 操作」。适合步骤固定、容易拆成列表的场景。
+                </template>
+                <template v-else>
+                  <strong>整块模式：</strong>整段描述一个连贯任务，模型会按语义拆成内部步骤。适合一步里包含多句说明、不便强行分行时。
+                </template>
+              </InlineHelpTip>
+            </div>
           </el-form-item>
         </template>
         <template v-else>
           <el-form-item label="步骤 JSON" required>
             <div class="pipeline-json-editor-wrap">
               <PipelineJsonEditor v-model="form.pipeline_steps_json" />
-              <div class="pipeline-toolbar">
+              <div class="pipeline-toolbar pipeline-toolbar--with-tip">
                 <el-button @click="formatPipelineJson">格式化 JSON</el-button>
                 <el-button v-if="form.runner === 'midscene'" @click="loadPipelineExample">插入 Midscene 示例</el-button>
                 <template v-else>
                   <el-button type="primary" @click="loadPlaywrightExample">简短模板（百度搜+截图）</el-button>
                   <el-button type="success" @click="loadPlaywrightComplexExample">复杂规范示例（多标签·滚动·断言）</el-button>
                 </template>
+                <InlineHelpTip v-if="form.runner === 'midscene'" :max-width="480">
+                  数组中每一步为对象，<code>type</code> 为
+                  aiAction / aiWaitFor / settle / wait / goto / goBack / switchToLatestTab / switchToTabIndex /
+                  closeOtherTabs / closeCurrentTab / expectTabCount / logPageInfo / scrollToBottom / screenshot /
+                  assertTitleContains / assertUrlContains。详见 <code>backend/midscene-runner/README.md</code>。
+                  <strong>aiAction 提示：</strong>不要用「标题必须含某某」这类强条件——真实页面文案会变，易报
+                  <code>AI model failed to locate</code>；改用「第一条非广告结果」「可见的搜索框」等描述。
+                </InlineHelpTip>
+                <InlineHelpTip v-else :max-width="480">
+                  <strong>规范文档（v1.0）：</strong>
+                  <code>backend/playwright-runner/PIPELINE_SPEC.md</code>（完整 <code>type</code>、定位器：Role/Text/TestId/Placeholder/Label/Alt/Title、CSS、XPath、<code>first</code>/<code>nth</code>/<code>frame</code>）。
+                  按钮「复杂规范示例」对应多标签、滚动、<code>verifyText</code> 等组合流程。
+                  <br />
+                  <strong>JSON 形状：</strong>可为<strong>步骤数组</strong>，或与 <code>pipeline.schema.json</code> 一致的<strong>对象</strong>（含
+                  <code>startUrl</code>、<code>headless</code>、<code>recordVideo</code>、<code>executionSteps</code>）；对象时步骤来自
+                  <code>executionSteps</code>，<code>startUrl</code> 可与上方「起始 URL」二选一填写。
+                  <br />
+                  速查：<code>waitForSelector</code> 默认 <code>attached</code>；多匹配加 <code>first</code> 或 <code>nth</code>；百度推荐
+                  <code>fill</code> + <code>press Enter</code>。详见 <code>backend/playwright-runner/PIPELINE_SPEC.md</code>。
+                </InlineHelpTip>
+                <InlineHelpTip v-if="hintPlaywrightPipeline">{{ hintPlaywrightPipeline }}</InlineHelpTip>
+                <InlineHelpTip v-if="hintMidscenePipeline">{{ hintMidscenePipeline }}</InlineHelpTip>
               </div>
             </div>
-            <el-text v-if="form.runner === 'midscene'" class="field-tip" type="info" size="small" tag="div">
-              数组中每一步为对象，<code>type</code> 为
-              aiAction / aiWaitFor / settle / wait / goto / goBack / switchToLatestTab / switchToTabIndex /
-              closeOtherTabs / closeCurrentTab / expectTabCount / logPageInfo / scrollToBottom / screenshot /
-              assertTitleContains / assertUrlContains。详见 <code>backend/midscene-runner/README.md</code>。
-              <strong>aiAction 提示：</strong>不要用「标题必须含某某」这类强条件——真实页面文案会变，易报
-              <code>AI model failed to locate</code>；改用「第一条非广告结果」「可见的搜索框」等描述。
-            </el-text>
-            <el-text v-else class="field-tip playwright-schema-tip" type="info" size="small" tag="div">
-              <strong>规范文档（v1.0）：</strong>
-              <code>backend/playwright-runner/PIPELINE_SPEC.md</code>（完整 <code>type</code>、定位器：Role/Text/TestId/Placeholder/Label/Alt/Title、CSS、XPath、<code>first</code>/<code>nth</code>/<code>frame</code>）。
-              按钮「复杂规范示例」对应多标签、滚动、<code>verifyText</code> 等组合流程。
-              <br />
-              <strong>JSON 形状：</strong>可为<strong>步骤数组</strong>，或与 <code>pipeline.schema.json</code> 一致的<strong>对象</strong>（含
-              <code>startUrl</code>、<code>headless</code>、<code>recordVideo</code>、<code>executionSteps</code>）；对象时步骤来自
-              <code>executionSteps</code>，<code>startUrl</code> 可与上方「起始 URL」二选一填写。
-              <br />
-              速查：<code>waitForSelector</code> 默认 <code>attached</code>；多匹配加 <code>first</code> 或 <code>nth</code>；百度推荐
-              <code>fill</code> + <code>press Enter</code>。详见 <code>backend/playwright-runner/PIPELINE_SPEC.md</code>。
-            </el-text>
-            <el-alert
-              v-if="hintPlaywrightPipeline"
-              type="warning"
-              :closable="false"
-              show-icon
-              class="field-inline-alert"
-              :title="hintPlaywrightPipeline"
-            />
-            <el-alert
-              v-if="hintMidscenePipeline"
-              type="warning"
-              :closable="false"
-              show-icon
-              class="field-inline-alert"
-              :title="hintMidscenePipeline"
-            />
           </el-form-item>
         </template>
         <el-form-item label="选项">
@@ -215,51 +214,59 @@
           </el-checkbox>
         </el-form-item>
         <el-form-item label="执行策略">
-          <el-checkbox v-model="form.stable_wait_after_step">
-            步骤间稳定等待：每步后先等待 DOM 就绪（domcontentloaded），再睡眠下面的「步骤间隔」（慢页或易抢步再勾选）
-          </el-checkbox>
-          <el-text class="field-tip" type="info" size="small" tag="div">
-            默认<strong>关闭</strong>以缩短墙钟时间。默认也<strong>不</strong>等待「网络空闲」（SPA 易卡）；仍抢步可加大间隔或勾选本项；服务端可在
-            <code>.env</code> 设 <code>MIDSCENE_SETTLE_NETWORK_IDLE=true</code> 以额外尝试 networkidle。
-            单次 <code>aiAction</code> 仍受视觉模型耗时影响（数秒～数十秒属正常）。
-          </el-text>
+          <div class="form-item-with-tip form-item-with-tip--strategy">
+            <el-checkbox v-model="form.stable_wait_after_step" class="strategy-checkbox">
+              步骤间稳定等待：每步后先等待 DOM 就绪（domcontentloaded），再睡眠下面的「步骤间隔」（慢页或易抢步再勾选）
+            </el-checkbox>
+            <span class="strategy-inline-tip">
+              <InlineHelpTip>
+                默认<strong>关闭</strong>以缩短墙钟时间。默认也<strong>不</strong>等待「网络空闲」（SPA 易卡）；仍抢步可加大间隔或勾选本项；服务端可在
+                <code>.env</code> 设 <code>MIDSCENE_SETTLE_NETWORK_IDLE=true</code> 以额外尝试 networkidle。
+                单次 <code>aiAction</code> 仍受视觉模型耗时影响（数秒～数十秒属正常）。
+              </InlineHelpTip>
+            </span>
+          </div>
         </el-form-item>
         <el-form-item v-if="form.runner === 'playwright'" label="slowMo(ms)">
-          <el-input-number
-            v-model="form.slow_mo_ms"
-            :min="0"
-            :max="2000"
-            :step="50"
-            controls-position="right"
-            class="step-gap-input"
-          />
-          <el-text class="field-tip" type="info" size="small" tag="div">
-            仅纯 Playwright：<strong>0=关闭</strong>，<strong>最大 2000ms</strong>。每个操作之间插入延迟，录屏里更容易看出先后；<strong>仍不会显示鼠标指针</strong>。调试可设
-            <strong>200～500</strong>。
-          </el-text>
+          <div class="form-item-with-tip form-item-with-tip--inline form-item-with-tip--align-center">
+            <el-input-number
+              v-model="form.slow_mo_ms"
+              :min="0"
+              :max="2000"
+              :step="50"
+              controls-position="right"
+              class="step-gap-input"
+            />
+            <InlineHelpTip>
+              仅纯 Playwright：<strong>0=关闭</strong>，<strong>最大 2000ms</strong>。每个操作之间插入延迟，录屏里更容易看出先后；<strong>仍不会显示鼠标指针</strong>。调试可设
+              <strong>200～500</strong>。
+            </InlineHelpTip>
+          </div>
         </el-form-item>
         <el-form-item label="步骤间隔(ms)">
-          <el-input-number
-            v-model="form.step_gap_ms"
-            :min="0"
-            :max="120000"
-            :step="200"
-            controls-position="right"
-            class="step-gap-input"
-          />
-          <el-text class="field-tip" type="info" size="small" tag="div">
-            <template v-if="form.task_mode === 'pipeline'">
-              步骤编排：作为各 <code>aiAction</code> / <code>goto</code> / <code>goBack</code> 等后的默认间隔（步骤内可用
-              <code>settle</code> 单独覆盖）。默认 <strong>400</strong>；易抢步可 <strong>800～2500</strong>。
-            </template>
-            <template v-else-if="form.instruction_mode === 'multi_line'">
-              多行模式：在「稳定等待」之后，每两行指令之间再睡眠的毫秒数（<strong>无脚本内置下限</strong>）。默认
-              <strong>400</strong>；慢页或仍抢步可 <strong>800～2500</strong> 或更高。
-            </template>
-            <template v-else>
-              整块模式：仅影响打开起始 URL 后、执行整段 <code>aiAction</code> 前的首屏等待。
-            </template>
-          </el-text>
+          <div class="form-item-with-tip form-item-with-tip--inline form-item-with-tip--align-center">
+            <el-input-number
+              v-model="form.step_gap_ms"
+              :min="0"
+              :max="120000"
+              :step="200"
+              controls-position="right"
+              class="step-gap-input"
+            />
+            <InlineHelpTip>
+              <template v-if="form.task_mode === 'pipeline'">
+                步骤编排：作为各 <code>aiAction</code> / <code>goto</code> / <code>goBack</code> 等后的默认间隔（步骤内可用
+                <code>settle</code> 单独覆盖）。默认 <strong>400</strong>；易抢步可 <strong>800～2500</strong>。
+              </template>
+              <template v-else-if="form.instruction_mode === 'multi_line'">
+                多行模式：在「稳定等待」之后，每两行指令之间再睡眠的毫秒数（<strong>无脚本内置下限</strong>）。默认
+                <strong>400</strong>；慢页或仍抢步可 <strong>800～2500</strong> 或更高。
+              </template>
+              <template v-else>
+                整块模式：仅影响打开起始 URL 后、执行整段 <code>aiAction</code> 前的首屏等待。
+              </template>
+            </InlineHelpTip>
+          </div>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :loading="submitting" :disabled="!canSubmit" @click="onSubmit">
@@ -329,21 +336,8 @@
       @closed="onDrawerClosed"
     >
       <div v-if="selected" class="drawer-inner">
-        <el-alert
-          type="info"
-          :closable="false"
-          show-icon
-          class="detail-hint-alert"
-          :class="{ 'detail-hint-alert--pw': isPlaywrightRun }"
-        >
-          <template v-if="isPlaywrightRun">
-            <strong>浏览器实际打开的是「起始 URL」</strong>。下方为 <strong>Playwright</strong> 执行报告（步骤日志 / HTML），可与录屏对照。
-          </template>
-          <template v-else>
-            <strong>浏览器里实际打开的是「起始 URL」</strong>；「模型 API」仅供程序调视觉模型。
-            成功时请看 <strong>Midscene</strong> 报告与录屏确认操作是否执行。
-          </template>
-        </el-alert>
+        <div class="drawer-tip-line">
+        </div>
         <el-descriptions :column="1" border size="small">
           <el-descriptions-item label="状态">{{ selected.status }}</el-descriptions-item>
           <el-descriptions-item label="是否录制视频">{{
@@ -368,8 +362,17 @@
           <el-descriptions-item label="错误" v-if="selected.error_message">
             <span class="error-inline">{{ selected.error_message }}</span>
           </el-descriptions-item>
+         
         </el-descriptions>
-
+         <InlineHelpTip>
+            <template v-if="isPlaywrightRun">
+              <strong>浏览器实际打开的是「起始 URL」</strong>。下方为 <strong>Playwright</strong> 执行报告（步骤日志 / HTML），可与录屏对照。
+            </template>
+            <template v-else>
+              <strong>浏览器里实际打开的是「起始 URL」</strong>；「模型 API」仅供程序调视觉模型。
+              成功时请看 <strong>Midscene</strong> 报告与录屏确认操作是否执行。
+            </template>
+          </InlineHelpTip>
         <div v-if="selected.status === 'success'" class="preview-wrap">
           <div v-if="selected.report_file" class="preview-block" :class="isPlaywrightRun ? 'preview-block--pw-report' : 'preview-block--midscene-report'">
             <div class="report-shell">
@@ -479,6 +482,7 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { ArrowDown } from "@element-plus/icons-vue";
 import JSON5 from "json5";
 import PipelineJsonEditor from "../components/PipelineJsonEditor.vue";
+import InlineHelpTip from "../components/InlineHelpTip.vue";
 import { http } from "../api/http";
 import {
   createMidsceneRunApi,
@@ -1144,12 +1148,6 @@ const hintMidscenePipeline = computed(() => {
   }
 });
 
-const hintMidsceneInstructions = computed(() => {
-  if (form.runner !== "midscene" || form.task_mode !== "classic") return "";
-  if (!form.instructions.trim()) return "请填写自然语言指令";
-  return "";
-});
-
 function syncResponsiveLayout() {
   if (typeof window === "undefined") return;
   const w = window.innerWidth;
@@ -1551,11 +1549,7 @@ onBeforeUnmount(() => {
 .form-api-error {
   margin-bottom: 12px;
   width: 100%;
-  max-width: min(900px, 100%);
-}
-.field-inline-alert {
-  margin-top: 10px;
-  width: 100%;
+  max-width: 100%;
 }
 .panel {
   background: #fff;
@@ -1570,7 +1564,9 @@ onBeforeUnmount(() => {
   color: #374151;
 }
 .form-grid {
-  max-width: min(900px, 100%);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 @media (max-width: 640px) {
   .form-grid--responsive :deep(.el-form-item__label) {
@@ -1594,10 +1590,10 @@ onBeforeUnmount(() => {
 }
 .select-full {
   width: 100%;
-  max-width: 640px;
 }
 .step-gap-input {
   width: 160px;
+  flex-shrink: 0;
 }
 .pipeline-json-editor-wrap {
   width: 100%;
@@ -1610,6 +1606,94 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
 }
+.pipeline-toolbar--with-tip {
+  justify-content: flex-start;
+}
+.form-item-with-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  flex-wrap: wrap;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-right: 10px  ;
+}
+.form-item-with-tip--inline {
+  display: inline-flex;
+  width: auto;
+  max-width: 100%;
+}
+.form-item-with-tip--align-center {
+  align-items: center;
+}
+.form-item-with-tip--wrap {
+  align-items: flex-start;
+}
+/** 执行策略：复选框与说明图标同一行（图标在行末、顶对齐，文案可换行） */
+.form-item-with-tip--strategy {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.strategy-checkbox {
+  min-width: 0;
+}
+.strategy-checkbox :deep(.el-checkbox__label) {
+  white-space: normal;
+  line-height: 1.5;
+}
+.strategy-inline-tip {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  margin-top: 2px;
+  padding-top: 6px;
+}
+.form-item-with-tip__main {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.form-item-with-tip__main--select {
+  width: 400px;
+  max-width: min(100%, 520px);
+}
+/** 起始 URL：输入框与提示图标同一行、图标紧跟输入框 */
+.start-url-with-tip {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 6px;
+  max-width: 100%;
+}
+.start-url-with-tip .start-url-input {
+  width: min(100%, 480px);
+  max-width: 100%;
+  flex: 0 1 auto;
+}
+.textarea-with-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.textarea-with-tip__input {
+  flex: 1;
+  min-width: 0;
+}
+.textarea-with-tip__icon {
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.drawer-tip-line {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
 .instruction-view-row {
   display: flex;
   align-items: center;
@@ -1620,20 +1704,9 @@ onBeforeUnmount(() => {
   font-size: 12px;
   color: #909399;
 }
-.field-tip {
-  display: block;
-  font-size: 12px;
-  color: #9ca3af;
-  margin-top: 4px;
-}
 .instructions-textarea :deep(textarea) {
   font-family: inherit;
   line-height: 1.55;
-}
-.instructions-guide {
-  margin-top: 8px;
-  line-height: 1.65;
-  color: #64748b;
 }
 .error-text {
   color: #dc2626;
@@ -1754,17 +1827,6 @@ onBeforeUnmount(() => {
 .muted {
   color: #9ca3af;
   font-size: 13px;
-}
-.detail-hint-alert {
-  margin: 0 0 12px;
-}
-.detail-hint-alert :deep(.el-alert__content) {
-  font-size: 13px;
-  line-height: 1.55;
-}
-.detail-hint-alert--pw {
-  --el-alert-bg-color: #f5f3ff;
-  --el-alert-border-color: #ddd6fe;
 }
 .instructions-pre {
   margin: 0;

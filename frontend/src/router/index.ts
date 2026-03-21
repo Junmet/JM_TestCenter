@@ -7,6 +7,9 @@ import CaseListView from "../views/CaseListView.vue";
 import CaseRequirementDetailView from "../views/CaseRequirementDetailView.vue";
 import CaseGenView from "../views/CaseGenView.vue";
 import UiAutomationView from "../views/UiAutomationView.vue";
+import ApiTestView from "../views/ApiTestView.vue";
+import PerformanceTestView from "../views/PerformanceTestView.vue";
+import AiChatView from "../views/AiChatView.vue";
 
 const routes: RouteRecordRaw[] = [
   { path: "/", redirect: "/home" },
@@ -25,7 +28,10 @@ const routes: RouteRecordRaw[] = [
       { path: "cases", name: "Cases", component: CaseListView },
       { path: "cases/:reqId", name: "CaseRequirementDetail", component: CaseRequirementDetailView },
       { path: "case-gen", name: "CaseGen", component: CaseGenView },
-      { path: "ui-automation", name: "UiAutomation", component: UiAutomationView }
+      { path: "ui-automation", name: "UiAutomation", component: UiAutomationView },
+      { path: "api-test", name: "ApiTest", component: ApiTestView },
+      { path: "perf-test", name: "PerfTest", component: PerformanceTestView },
+      { path: "ai-chat", name: "AiChat", component: AiChatView }
     ]
   }
 ];

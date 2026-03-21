@@ -1,22 +1,25 @@
 <!--
-  控制台页面 · 设计说明（初稿）
-  --------------------------
-  布局：
-  1. 顶部：标题「控制台」+ 副标题说明
-  2. 统计区：一行 4 张卡片（测试项目 / 用例总数 / 通过率 / 今日执行），后续可接 GET /api/v1/dashboard/stats
-  3. 主内容：左右两栏
-     - 左：最近执行（表格，任务名、状态、执行时间），后续可接 GET /api/v1/dashboard/recent-runs
-     - 右：快捷入口列表 + 平台说明
-  数据：当前全部写死，等后端接口后再替换为请求结果。
+  控制台：对接 GET /api/v1/dashboard/overview（用例管理 + UI 自动化统计与趋势）
 -->
 <template>
-  <div class="page-view dashboard">
+  <div class="page-view dashboard" v-loading="loading">
     <header class="dashboard-header">
       <h1 class="title">控制台</h1>
-      <p class="subtitle">测试平台运行概览，数据为前端写死，后续由后端接口提供</p>
+      <p class="subtitle">
+        测试需求、用例与 UI 自动化执行概览；数据来自当前登录账号的后台记录
+      </p>
     </header>
 
-    <!-- 统计卡片：一行 4 个，后续可接 /api/v1/dashboard/stats -->
+    <el-alert
+      v-if="loadError"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="dash-alert"
+      :title="loadError"
+    />
+
+    <!-- 统计卡片 -->
     <section class="stats-row">
       <el-card v-for="card in statCards" :key="card.key" class="stat-card" shadow="hover">
         <span class="stat-label">{{ card.label }}</span>
@@ -25,10 +28,24 @@
       </el-card>
     </section>
 
-    <!-- 主内容区：左侧最近执行，右侧快捷信息 -->
+    <!-- 图表区 -->
+    <section class="charts-row">
+      <el-card class="chart-panel" shadow="never">
+        <h2 class="panel-title">用例执行状态分布</h2>
+        <p class="chart-hint">基于「用例管理」中各用例的执行状态汇总</p>
+        <v-chart class="dash-chart" :option="pieOption" autoresize />
+      </el-card>
+      <el-card class="chart-panel" shadow="never">
+        <h2 class="panel-title">近 7 日 UI 自动化执行</h2>
+        <p class="chart-hint">按自然日统计（Asia/Shanghai）</p>
+        <v-chart class="dash-chart" :option="barOption" autoresize />
+      </el-card>
+    </section>
+
+    <!-- 最近执行 + 快捷入口 -->
     <section class="dashboard-main">
       <el-card class="panel panel-recent" shadow="never">
-        <h2 class="panel-title">最近执行</h2>
+        <h2 class="panel-title">最近 UI 自动化任务</h2>
         <div class="list-table-wrap list-table-wrap--dashboard">
           <div class="list-table-scroll">
             <el-table
@@ -38,16 +55,17 @@
               table-layout="fixed"
               height="100%"
               class="list-table list-table--first-left"
+              empty-text="暂无执行记录，可在「UI 自动化」发起任务"
             >
-              <el-table-column prop="name" label="任务名称" show-overflow-tooltip />
-              <el-table-column label="状态" show-overflow-tooltip>
+              <el-table-column prop="title" label="任务名称" show-overflow-tooltip />
+              <el-table-column label="状态" width="100" show-overflow-tooltip>
                 <template #default="{ row }">
-                  <el-tag :type="row.status === 'success' ? 'success' : row.status === 'fail' ? 'danger' : 'primary'" effect="light">
-                    {{ row.statusText }}
+                  <el-tag :type="tagTypeForRun(row.status)" effect="light">
+                    {{ row.status_text }}
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="runAt" label="执行时间" show-overflow-tooltip />
+              <el-table-column prop="run_at" label="创建时间" width="160" show-overflow-tooltip />
             </el-table>
           </div>
         </div>
@@ -55,44 +73,178 @@
       <el-card class="panel panel-side" shadow="never">
         <h2 class="panel-title">快捷入口</h2>
         <div class="quick-links">
-          <el-link v-for="link in quickLinks" :key="link.path" :href="link.path" class="quick-link" type="primary">
+          <router-link
+            v-for="link in quickLinks"
+            :key="link.path"
+            :to="link.path"
+            class="quick-link"
+          >
             {{ link.title }}
-          </el-link>
+          </router-link>
         </div>
-        <h2 class="panel-title panel-title--small">平台说明</h2>
-        <p class="panel-desc">JMTEST 为测试管理平台，后续将接入：用例管理、执行计划、报告与权限等。当前控制台为静态示意。</p>
+        <h2 class="panel-title panel-title--small">说明</h2>
+        <p class="panel-desc">
+          通过率按已执行用例中「成功 / (成功+失败)」计算；未执行或阻塞不计入分母。UI
+          任务为 Midscene / Playwright 运行记录。
+        </p>
       </el-card>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useAuthStore } from "../stores/auth";
+import { use } from "echarts/core";
+import { BarChart, PieChart } from "echarts/charts";
+import {
+  GridComponent,
+  LegendComponent,
+  TitleComponent,
+  TooltipComponent,
+} from "echarts/components";
+import { CanvasRenderer } from "echarts/renderers";
+import type { ComposeOption } from "echarts/core";
+import type { BarSeriesOption, PieSeriesOption } from "echarts/charts";
+import VChart from "vue-echarts";
+import { computed, onMounted, ref } from "vue";
+import { isAxiosError } from "axios";
+import { getDashboardOverviewApi, type DashboardOverview } from "../api/dashboard";
 
-const authStore = useAuthStore();
+use([CanvasRenderer, BarChart, PieChart, GridComponent, LegendComponent, TitleComponent, TooltipComponent]);
 
-// ========== 以下为写死数据，后续由后端接口替换 ==========
+const loading = ref(false);
+const loadError = ref("");
+const overview = ref<DashboardOverview | null>(null);
 
-const statCards = [
-  { key: "projects", label: "测试项目", value: "6", extra: "" },
-  { key: "cases", label: "用例总数", value: "128", extra: "" },
-  { key: "passRate", label: "通过率", value: "96.2", extra: "%" },
-  { key: "today", label: "今日执行", value: "24", extra: "次" }
-];
+const statCards = computed(() => {
+  const s = overview.value?.stats;
+  if (!s) {
+    return [
+      { key: "req", label: "测试需求", value: "—", extra: "" },
+      { key: "cases", label: "用例总数", value: "—", extra: "" },
+      { key: "pass", label: "用例通过率", value: "—", extra: "" },
+      { key: "today", label: "今日 UI 执行", value: "—", extra: "" },
+    ];
+  }
+  const pass =
+    s.case_pass_rate_percent === null || s.case_pass_rate_percent === undefined
+      ? "—"
+      : String(s.case_pass_rate_percent);
+  const passExtra = pass === "—" ? "" : "%";
+  return [
+    { key: "req", label: "测试需求", value: String(s.requirement_count), extra: "个" },
+    { key: "cases", label: "用例总数", value: String(s.case_count), extra: "条" },
+    { key: "pass", label: "用例通过率", value: pass, extra: passExtra },
+    {
+      key: "today",
+      label: "今日 UI 执行",
+      value: String(s.ui_runs_today),
+      extra: `次 · 累计 ${s.ui_runs_total}`,
+    },
+  ];
+});
 
-const recentRuns = [
-  { id: 1, name: "回归用例集-A", status: "success", statusText: "通过", runAt: "2025-03-19 10:32" },
-  { id: 2, name: "接口冒烟测试", status: "success", statusText: "通过", runAt: "2025-03-19 09:15" },
-  { id: 3, name: "登录流程用例", status: "fail", statusText: "失败", runAt: "2025-03-18 16:20" },
-  { id: 4, name: "支付流程回归", status: "success", statusText: "通过", runAt: "2025-03-18 14:00" },
-  { id: 5, name: "性能压测-P0", status: "running", statusText: "执行中", runAt: "2025-03-19 11:00" }
-];
+const recentRuns = computed(() => overview.value?.recent_ui_runs ?? []);
+
+type EChartsOption = ComposeOption<PieSeriesOption | BarSeriesOption>;
+
+const pieOption = computed<EChartsOption>(() => {
+  const c = overview.value?.case_execution;
+  if (!c) {
+    return {
+      tooltip: { trigger: "item" },
+      series: [{ type: "pie", radius: ["42%", "68%"], data: [] }],
+    };
+  }
+  const data = [
+    { value: c.not_executed, name: "未执行" },
+    { value: c.success, name: "成功" },
+    { value: c.failed, name: "失败" },
+    { value: c.blocked, name: "阻塞" },
+  ].filter((x) => x.value > 0);
+  const empty = data.length === 0;
+  return {
+    color: ["#94a3b8", "#22c55e", "#ef4444", "#f59e0b"],
+    tooltip: { trigger: "item", formatter: "{b}: {c} ({d}%)" },
+    legend: { bottom: 0, left: "center" },
+    series: [
+      {
+        type: "pie",
+        radius: ["42%", "68%"],
+        avoidLabelOverlap: true,
+        itemStyle: { borderRadius: 6, borderColor: "#fff", borderWidth: 2 },
+        label: { formatter: "{b}\n{c}" },
+        data: empty ? [{ value: 1, name: "暂无数据", itemStyle: { color: "#e2e8f0" } }] : data,
+      },
+    ],
+  };
+});
+
+const barOption = computed<EChartsOption>(() => {
+  const pts = overview.value?.ui_runs_last_7_days ?? [];
+  const labels = pts.map((p) => p.date.slice(5));
+  const counts = pts.map((p) => p.count);
+  return {
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+    grid: { left: 48, right: 16, top: 24, bottom: 40 },
+    xAxis: {
+      type: "category",
+      data: labels,
+      axisLabel: { color: "#64748b" },
+    },
+    yAxis: {
+      type: "value",
+      minInterval: 1,
+      axisLabel: { color: "#64748b" },
+      splitLine: { lineStyle: { type: "dashed", color: "#e2e8f0" } },
+    },
+    series: [
+      {
+        type: "bar",
+        name: "执行次数",
+        data: counts,
+        barMaxWidth: 36,
+        itemStyle: {
+          color: "#3b82f6",
+          borderRadius: [4, 4, 0, 0],
+        },
+      },
+    ],
+  };
+});
 
 const quickLinks = [
-  { title: "用例管理", path: "#" },
-  { title: "执行计划", path: "#" },
-  { title: "测试报告", path: "#" }
+  { title: "用例管理", path: "/cases" },
+  { title: "UI 自动化", path: "/ui-automation" },
+  { title: "用例生成", path: "/case-gen" },
 ];
+
+function tagTypeForRun(status: string): "success" | "danger" | "warning" | "info" | "primary" {
+  if (status === "success") return "success";
+  if (status === "failed") return "danger";
+  if (status === "running") return "primary";
+  if (status === "pending") return "info";
+  return "info";
+}
+
+onMounted(async () => {
+  loading.value = true;
+  loadError.value = "";
+  try {
+    overview.value = await getDashboardOverviewApi();
+  } catch (e: unknown) {
+    let detail = "";
+    if (isAxiosError(e)) {
+      const d = e.response?.data;
+      if (typeof d === "string") detail = d;
+      else if (d && typeof d === "object" && "detail" in d) detail = String((d as { detail: unknown }).detail);
+    } else if (e instanceof Error) {
+      detail = e.message;
+    }
+    loadError.value = detail ? `加载控制台数据失败：${detail}` : "加载控制台数据失败，请稍后重试";
+  } finally {
+    loading.value = false;
+  }
+});
 </script>
 
 <style scoped>
@@ -103,6 +255,9 @@ const quickLinks = [
   min-width: 0;
 }
 .dashboard-header {
+  flex-shrink: 0;
+}
+.dash-alert {
   flex-shrink: 0;
 }
 .title {
@@ -143,8 +298,32 @@ const quickLinks = [
   color: #0f172a;
 }
 .stat-extra {
-  font-size: 14px;
+  font-size: 13px;
   color: #64748b;
+}
+
+.charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  min-height: 0;
+}
+.chart-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+.chart-hint {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+.dash-chart {
+  height: 280px;
+  width: 100%;
+  min-height: 240px;
 }
 
 .dashboard-main {
@@ -201,6 +380,25 @@ const quickLinks = [
   gap: 10px;
 }
 .quick-link {
-  justify-content: flex-start;
+  color: #2563eb;
+  font-size: 14px;
+  text-decoration: none;
+}
+.quick-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 1200px) {
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .charts-row {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 900px) {
+  .dashboard-main {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
