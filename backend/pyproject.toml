@@ -1,0 +1,31 @@
+[project]
+name = "jmtestcenter-backend"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.110,<1",
+  "uvicorn[standard]>=0.27,<1",
+  "SQLAlchemy>=2.0,<3",
+  "pymysql>=1.1,<2",
+  "alembic>=1.13,<2",
+  "pydantic-settings>=2.2,<3",
+  "python-jose[cryptography]>=3.3,<4",
+  "passlib[bcrypt]>=1.7,<2",
+  "python-multipart>=0.0.9,<1",
+  "python-docx>=1.1.2,<2",
+  "pymupdf>=1.24,<2",
+  "python-dotenv>=1.0.1,<2",
+  "langchain-openai>=0.3,<1",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.ruff]
+line-length = 100
+

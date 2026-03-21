@@ -1,0 +1,52 @@
+# =============================================================================
+# JM Test Genius — 根目录 Git 忽略规则（全仓）
+# 与 frontend/.gitignore、backend/.gitignore 语义对齐；子目录规则在各自目录内维护。
+# 另：backend/ 子模块的忽略规则已合并进 backend/.gitignore。
+# =============================================================================
+
+# ----- npm / 前端 -----
+node_modules/
+frontend/dist/
+frontend/dist-ssr/
+*.tsbuildinfo
+
+# ----- Python -----
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# ----- 密钥与本地环境变量（仓库中仅保留 *.example 模板）-----
+.env
+!.env.example
+
+# ----- 后端运行时数据（UI 自动化产物、运行记录等）-----
+backend/data/
+
+# ----- Playwright 运行器本地调试输出 -----
+backend/playwright-runner/_test_run/
+backend/playwright-runner/artifacts/
+
+# ----- 日志与临时文件 -----
+*.log
+*.swp
+*.swo
+
+# ----- IDE / 工具 -----
+.idea/
+.vscode/
+.cursor/
+.DS_Store
+Thumbs.db
+
+# ----- 测试与类型检查缓存 -----
+coverage/
+.pytest_cache/
+.mypy_cache/
+htmlcov/
+.ruff_cache/

@@ -1,0 +1,56 @@
+/**
+ * 全局：路由出口渲染的根组件与窗口同高，避免出现浏览器滚动条
+ */
+#app > * {
+  height: 100%;
+}
+
+/**
+ * 公共页面容器：所有需要与浏览器窗口自适应、不撑出滚动条的页面统一使用。
+ * 用法：在页面根节点加 class="page-view"，内容超出时仅在 .page-view 内部滚动。
+ */
+.page-view {
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px;
+  background: #f5f7fb;
+}
+
+/**
+ * 统一列表表格样式（对齐「用例生成 → 生成历史」）
+ * - 外层：list-table-wrap + list-table-scroll 形成 flex 自适应高度
+ * - 表格：class="list-table" + table-layout="fixed" + size="small"
+ * - 首列长文本左对齐：加 list-table--first-left
+ * - 首列为勾选、第二列为编号左对齐：加 list-table--check-left
+ */
+.list-table-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.list-table-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.el-table.list-table {
+  width: 100%;
+}
+.el-table.list-table .cell {
+  display: block;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.el-table.list-table.list-table--first-left .el-table__cell:first-child .cell {
+  text-align: left;
+}
+.el-table.list-table.list-table--check-left .el-table__cell:nth-child(2) .cell {
+  text-align: left;
+}

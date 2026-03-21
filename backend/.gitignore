@@ -1,0 +1,52 @@
+# -----------------------------------------------------------------------------
+# 后端目录统一忽略规则（含 testcase、playwright-runner、midscene-runner）
+# 与仓库根目录 .gitignore 对齐；子目录不再单独维护 .gitignore。
+# -----------------------------------------------------------------------------
+
+# ----- 运行时数据（UI 自动化产物等） -----
+data/
+
+# ----- Python -----
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# ----- 密钥与环境（保留 *.example） -----
+.env
+!.env.example
+
+# ----- Midscene / Playwright 运行器 -----
+midscene-runner/node_modules/
+playwright-runner/node_modules/
+playwright-runner/_test_run/
+playwright-runner/artifacts/
+
+# ----- testcase：用例生成（原 testcase/.gitignore 已合并至此） -----
+testcase/input/
+testcase/output/
+testcase/debug/
+testcase/log/
+testcase/dist/
+testcase/build/
+
+# ----- 日志、测试与类型检查缓存 -----
+*.log
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+coverage/
+
+# ----- 编辑器临时文件 -----
+*.swp
+*.swo
+
+# ----- 系统 -----
+.DS_Store
+Thumbs.db

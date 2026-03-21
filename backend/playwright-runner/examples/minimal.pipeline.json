@@ -1,0 +1,13 @@
+{
+  "$schema": "../schema/pipeline.schema.json",
+  "startUrl": "https://example.com/",
+  "headless": true,
+  "recordVideo": false,
+  "stepGapMs": 200,
+  "stableWaitAfterStep": false,
+  "executionSteps": [
+    { "type": "waitForLoadState", "state": "domcontentloaded", "timeoutMs": 30000 },
+    { "type": "waitForSelector", "locator": { "css": "body" }, "timeoutMs": 10000 },
+    { "type": "screenshot", "filename": "example.png", "fullPage": false }
+  ]
+}
