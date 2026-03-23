@@ -156,12 +156,22 @@ class CasesBatchResult(BaseModel):
     test_cases: list[TestCase] = Field(default_factory=list)
 
 
+def _optional_http_client(cfg: AppConfig) -> DefaultHttpxClient | None:
+    """可选：不复用 HTTP 连接，缓解代理/网关下 incomplete chunked read。"""
+    if not cfg.deepseek_http_no_keepalive:
+        return None
+    return DefaultHttpxClient(
+        timeout=httpx.Timeout(cfg.deepseek_timeout),
+        limits=httpx.Limits(max_connections=100, max_keepalive_connections=0),
+        headers={"Connection": "close"},
+    )
+
+
 def build_llm(cfg: AppConfig) -> ChatOpenAI:
     """
     使用 DeepSeek 的 OpenAI 兼容接口初始化 LangChain Chat 模型。
-    
-    这里通过 base_url + model + api_key 把 DeepSeek 暴露为 OpenAI ChatCompletion 接口，
-    并强制要求返回 JSON 对象，减少后续解析失败的概率。
+
+    用例生成专用：强制 JSON 对象输出，降低解析失败概率。
     """
     logger.info(
         "正在初始化 LLM 客户端：base_url=%s，模型=%s，超时=%s，最大 token=%s，LLM 重试=%s，禁用长连接=%s",
@@ -173,14 +183,8 @@ def build_llm(cfg: AppConfig) -> ChatOpenAI:
         cfg.deepseek_http_no_keepalive,
     )
     _ensure_langchain_compat()
-    # 可选：不复用 HTTP 连接，缓解代理/网关下 incomplete chunked read
-    http_client: DefaultHttpxClient | None = None
+    http_client = _optional_http_client(cfg)
     if cfg.deepseek_http_no_keepalive:
-        http_client = DefaultHttpxClient(
-            timeout=httpx.Timeout(cfg.deepseek_timeout),
-            limits=httpx.Limits(max_connections=100, max_keepalive_connections=0),
-            headers={"Connection": "close"},
-        )
         logger.info("已启用 DEEPSEEK_HTTP_NO_KEEPALIVE：不复用长连接（Connection: close）")
 
     chat_kwargs: dict[str, Any] = {
@@ -190,14 +194,116 @@ def build_llm(cfg: AppConfig) -> ChatOpenAI:
         "temperature": 0.2,
         "timeout": cfg.deepseek_timeout,
         "max_tokens": cfg.deepseek_max_tokens,
-        # OpenAI SDK 层面对 5xx/断连等自动重试（与下方 _invoke_with_retry 互补）
         "max_retries": 5,
-        # 尝试强制模型以 JSON 对象形式返回，降低语法错误概率
         "model_kwargs": {"response_format": {"type": "json_object"}},
     }
     if http_client is not None:
         chat_kwargs["http_client"] = http_client
     return ChatOpenAI(**chat_kwargs)
+
+
+def build_chat_llm(
+    cfg: AppConfig,
+    *,
+    temperature: float = 0.7,
+    model: str | None = None,
+    max_tokens: int | None = None,
+) -> ChatOpenAI:
+    """
+    多轮对话专用：不强制 JSON 模式，避免聊天内容被 response_format 约束。
+
+    与 build_llm 共用同一套 DeepSeek 连接参数（base_url / key / 超时 / 可选禁用长连接）。
+    """
+    _ensure_langchain_compat()
+    http_client = _optional_http_client(cfg)
+    m = (model or cfg.deepseek_model).strip() or cfg.deepseek_model
+    mt = cfg.deepseek_max_tokens if max_tokens is None else max_tokens
+    logger.info(
+        "正在初始化对话 LLM：base_url=%s，模型=%s，temperature=%s，max_tokens=%s",
+        cfg.deepseek_base_url,
+        m,
+        temperature,
+        mt,
+    )
+    chat_kwargs: dict[str, Any] = {
+        "api_key": cfg.deepseek_api_key,
+        "base_url": f"{cfg.deepseek_base_url}/v1",
+        "model": m,
+        "temperature": temperature,
+        "timeout": cfg.deepseek_timeout,
+        "max_tokens": mt,
+        "max_retries": 5,
+    }
+    if http_client is not None:
+        chat_kwargs["http_client"] = http_client
+    return ChatOpenAI(**chat_kwargs)
+
+
+def chat_completion(
+    *,
+    cfg: AppConfig,
+    llm: ChatOpenAI,
+    messages: list[dict[str, str]],
+    step_name: str = "ai-chat",
+) -> str:
+    """
+    通用对话补全：messages 为 OpenAI 风格的 role/content 列表（system / user / assistant）。
+    """
+    msg = _invoke_with_retry(
+        llm,
+        messages,
+        step_name=step_name,
+        max_attempts=cfg.deepseek_llm_retries,
+    )
+    return (getattr(msg, "content", None) or "").strip()
+
+
+def _lc_messages_from_openai_dicts(messages: list[dict[str, str]]):
+    """OpenAI 风格 dict 转为 LangChain BaseMessage 列表，供 stream 使用。"""
+    from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+
+    out = []
+    for m in messages:
+        r, c = m["role"], m["content"]
+        if r == "system":
+            out.append(SystemMessage(content=c))
+        elif r == "user":
+            out.append(HumanMessage(content=c))
+        elif r == "assistant":
+            out.append(AIMessage(content=c))
+        else:
+            raise ValueError(f"unsupported role: {r}")
+    return out
+
+
+def _chunk_text_content(chunk: Any) -> str:
+    """兼容不同 LangChain / 模型返回的 content 形态（str 或 list）。"""
+    piece = getattr(chunk, "content", None)
+    if piece is None:
+        return ""
+    if isinstance(piece, str):
+        return piece
+    if isinstance(piece, list):
+        parts: list[str] = []
+        for x in piece:
+            if isinstance(x, dict) and isinstance(x.get("text"), str):
+                parts.append(x["text"])
+            elif isinstance(x, str):
+                parts.append(x)
+        return "".join(parts)
+    return str(piece)
+
+
+def stream_chat_completion_chunks(*, llm: ChatOpenAI, messages: list[dict[str, str]]):
+    """
+    流式对话：按片段产出文本（DeepSeek OpenAI 兼容流式）。
+    不做重试；调用方在失败时可回滚数据库事务。
+    """
+    lc = _lc_messages_from_openai_dicts(messages)
+    for chunk in llm.stream(lc):
+        piece = _chunk_text_content(chunk)
+        if piece:
+            yield piece
 
 
 def generate_from_text(

@@ -6,11 +6,15 @@ import sys
 import tempfile
 from pathlib import Path
 
-from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 
 from app.db.models.case_requirement import CaseRequirement
 from app.db.models.generated_case import GeneratedCase
+from app.integrations.deepseek_llm import (
+    build_llm_for_casegen,
+    load_deepseek_config,
+    prepare_testcase_env,
+)
 
 
 class CaseGenerationService:
@@ -44,12 +48,9 @@ class CaseGenerationService:
         max_chars: int = 15000,
         language: str | None = None,
     ) -> tuple[CaseRequirement, list[GeneratedCase]]:
-        parse_document, load_config, build_llm, generate_outline, generate_cases_batch = (
-            self._load_testcase_modules()
-        )
+        parse_document, generate_outline, generate_cases_batch = self._load_testcase_modules()
         self._ensure_langchain_compat()
-        # 强制加载 testcase 目录下的 .env，确保 DeepSeek 配置可用
-        load_dotenv(self._testcase_root / ".env", override=True)
+        prepare_testcase_env()
         safe_name = os.path.basename(filename) or "requirement.txt"
         suffix = Path(safe_name).suffix or ".txt"
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as f:
@@ -59,8 +60,8 @@ class CaseGenerationService:
         try:
             parsed = parse_document(tmp_path)
             doc_text = parsed.text[:max_chars]
-            cfg = load_config(override_language=language)
-            llm = build_llm(cfg)
+            cfg = load_deepseek_config(override_language=language)
+            llm = build_llm_for_casegen(cfg)
             outline = generate_outline(
                 cfg=cfg,
                 llm=llm,
@@ -265,16 +266,13 @@ class CaseGenerationService:
         return True
 
     def _load_testcase_modules(self):
-        # 复用 testcase 目录里的生成逻辑
+        # 复用 testcase 目录里的生成逻辑（DeepSeek 客户端由 app.integrations.deepseek_llm 统一构建）
         if str(self._testcase_root) not in sys.path:
             sys.path.insert(0, str(self._testcase_root))
         parsers = importlib.import_module("src.parsers")
-        config = importlib.import_module("src.config")
         llm = importlib.import_module("src.llm")
         return (
             getattr(parsers, "parse_document"),
-            getattr(config, "load_config"),
-            getattr(llm, "build_llm"),
             getattr(llm, "generate_outline"),
             getattr(llm, "generate_cases_batch"),
         )

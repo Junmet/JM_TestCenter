@@ -5,6 +5,8 @@ from app.db.models.generated_case import GeneratedCase  # noqa: F401
 from app.db.models.managed_requirement import ManagedRequirement  # noqa: F401
 from app.db.models.managed_case import ManagedCase  # noqa: F401
 from app.db.models.midscene_run import MidsceneRun  # noqa: F401
+from app.db.models.ai_chat_conversation import AiChatConversation  # noqa: F401
+from app.db.models.ai_chat_message import AiChatMessage  # noqa: F401
 
 __all__ = [
     "User",
@@ -14,5 +16,7 @@ __all__ = [
     "ManagedRequirement",
     "ManagedCase",
     "MidsceneRun",
+    "AiChatConversation",
+    "AiChatMessage",
 ]
 

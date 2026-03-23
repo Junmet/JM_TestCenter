@@ -14,9 +14,13 @@
     "@element-plus/icons-vue": "^2.3.2",
     "axios": "^1.7.2",
     "codemirror": "^6.0.2",
+    "dompurify": "^3.3.3",
     "echarts": "^6.0.0",
     "element-plus": "^2.13.5",
+    "github-markdown-css": "^5.9.0",
+    "highlight.js": "^11.11.1",
     "json5": "^2.2.3",
+    "markdown-it": "^14.1.1",
     "pinia": "^2.2.1",
     "vue": "^3.4.27",
     "vue-codemirror": "^6.1.1",
@@ -25,6 +29,8 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@types/dompurify": "^3.0.5",
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "^20.14.10",
     "@vitejs/plugin-vue": "^5.1.0",
     "typescript": "^5.5.4",
